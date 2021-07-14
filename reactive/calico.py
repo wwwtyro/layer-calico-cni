@@ -291,6 +291,7 @@ def install_calico_service():
     ip_versions = {net.version for net in get_networks(charm_config('cidr'))}
     ip4 = get_bind_address() if 4 in ip_versions else "none"
     ip6 = "autodetect" if 6 in ip_versions else "none"
+
     render('calico-node.service', service_path, {
         'connection_string': etcd.get_connection_string(),
         'etcd_key_path': ETCD_KEY_PATH,
@@ -462,7 +463,16 @@ def deploy_network_policy_controller():
 def configure_bgp_globals():
     status.maintenance('Configuring BGP globals')
     config = charm_config()
+    c_cidr = tuple(cidr
+                   for cidr in config['bgp-service-cluster-ips'].strip().split())
+    e_cidr = tuple(cidr
+                   for cidr in config['bgp-service-external-ips'].strip().split())
 
+    if not os.path.exists('/opt/calicoctl/kubeconfig') and os.path.isfile('/root/.kube/config'):
+        with open('/root/.kube/config') as src:
+            data = src.read()
+            with open('/opt/calicoctl/kubeconfig') as dst:
+                dst.write(data)
     try:
         try:
             bgp_config = calicoctl_get('bgpconfig', 'default')
@@ -475,7 +485,7 @@ def configure_bgp_globals():
                     'metadata': {
                         'name': 'default'
                     },
-                    'spec': {}
+                    'spec': {},
                 }
             else:
                 raise
@@ -483,6 +493,11 @@ def configure_bgp_globals():
         spec = bgp_config['spec']
         spec['asNumber'] = config['global-as-number']
         spec['nodeToNodeMeshEnabled'] = config['node-to-node-mesh']
+
+        if c_cidr:
+            spec['serviceClusterIPs'] = [ { 'cidr': cidr } for cidr in c_cidr ]
+        if e_cidr:
+            spec['serviceExternalIPs'] = [ { 'cidr' : cidr } for cidr in e_cidr ]
         calicoctl_apply(bgp_config)
     except CalledProcessError:
         log(traceback.format_exc())
@@ -493,7 +508,9 @@ def configure_bgp_globals():
 
 
 @when_any('config.changed.global-as-number',
-          'config.changed.node-to-node-mesh')
+          'config.changed.node-to-node-mesh',
+          'config.changed.bgp-service-cluster-ips',
+          'config.changed.bgp-service-external-ips')
 def reconfigure_bgp_globals():
     remove_state('calico.bgp.globals.configured')
 

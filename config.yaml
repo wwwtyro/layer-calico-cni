@@ -143,3 +143,30 @@ options:
       disable TX checksumming on the vxlan.calico network interface. This works
       around an upstream issue in Calico:
       https://github.com/projectcalico/calico/issues/3145
+  bgp-service-cluster-ips:
+    type: string
+    default: ""
+    description: |
+      Space-separated list of service cluster CIDRs to advertise over BGP.
+      These will be passed to the .spec.serviceClusterIPs field of the default
+      BGPConfiguration in Calico.
+
+      Example value: "10.0.0.0/24 10.0.1.0/24"
+  bgp-service-external-ips:
+    type: string
+    default: ""
+    description: |
+      Space-separated list of service external CIDRs to advertise over BGP.
+      These will be passed to the .spec.serviceExternalIPs field of the
+      default BGPConfiguration in Calico.
+
+      Example value: "10.0.0.0/24 10.0.1.0/24"
+  bgp-service-loadbalancer-ips:
+    type: string
+    default: ""
+    description: |
+      Space-separated list of service LoadBalancer CIDRs to advertise over BGP.
+      These will be passed to the .spec.serviceLoadBalancerIPs field of the
+      default BGPConfiguration in Calico.
+
+      Example value: "10.0.0.0/24 10.0.1.0/24"
